@@ -1,11 +1,17 @@
-﻿{
+﻿
+{
   "name": "proxy-server",
   "version": "1.0.0",
+  "description": "Bullion Rate Proxy Server with Smart Keep-Alive",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "http-proxy": "^1.18.1"
+    "http-proxy": "^1.18.1",
+    "axios": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
