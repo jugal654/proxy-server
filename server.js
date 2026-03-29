@@ -8,18 +8,23 @@ const proxy = createProxyServer({
 });
 
 proxy.on('error', (err, req, res) => {
-  console.error('Proxy error:', err);
+  console.error('Proxy error:', err.message);
+  if (!res.headersSent) {
+    res.writeHead(502, { 'Content-Type': 'text/plain' });
+  }
+  res.end('Proxy error');
 });
 
 const server = http.createServer((req, res) => {
   proxy.web(req, res);
 });
 
-// 🔥 VERY IMPORTANT (WebSocket fix)
 server.on('upgrade', (req, socket, head) => {
   proxy.ws(req, socket, head);
 });
 
-server.listen(process.env.PORT || 3000, () => {
-  console.log('Proxy server running');
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, () => {
+  console.log(`Proxy running on port ${PORT}`);
 });
