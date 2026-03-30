@@ -1,7 +1,6 @@
-﻿
-const http = require('http');
+﻿const http = require('http');
 const { createProxyServer } = require('http-proxy');
-const axios = require('axios'); // Required for the Keep-Alive hack
+const axios = require('axios');
 
 // 1. Setup the Proxy Server
 const proxy = createProxyServer({
@@ -21,14 +20,14 @@ proxy.on('error', (err, req, res) => {
 
 // 3. Create the Main Server
 const server = http.createServer((req, res) => {
-  // Add a simple health check endpoint for the Keep-Alive ping
+  // Health check endpoint
   if (req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('OK');
     return;
   }
 
-  // Forward all other requests to the proxy
+  // Forward all other requests
   proxy.web(req, res);
 });
 
@@ -44,33 +43,37 @@ server.listen(PORT, () => {
   console.log(`Keep-Alive Schedule: Mon-Fri, 09:00 to 00:00 IST`);
 });
 
-// --- SMART KEEP ALIVE HACK (IST TIME) ---
-// IMPORTANT: Replace the URL below with your actual Render URL
+// --- ROBUST KEEP ALIVE HACK (IST TIME) ---
+// IMPORTANT: Ensure this matches your actual Render service URL
 const RENDER_EXTERNAL_URL = 'https://your-app-name.onrender.com/health'; 
 
 setInterval(async () => {
     try {
-        // Get current time in India (IST)
         const now = new Date();
-        const options = { timeZone: 'Asia/Kolkata', hour12: false, weekday: 'long', hour: '2-digit' };
-        const formatter = new Intl.DateTimeFormat('en-US', options);
-        const parts = formatter.formatToParts(now);
         
-        const day = parts.find(p => p.type === 'weekday').value; // e.g., "Monday"
-        const hour = parseInt(parts.find(p => p.type === 'hour').value); // 0-23 format
+        // Generate a localized string for India: "Monday, 14"
+        const istString = now.toLocaleString("en-US", {
+            timeZone: "Asia/Kolkata",
+            weekday: "long",
+            hour: "numeric",
+            hour12: false
+        });
 
-        // Logic: Monday to Friday, 9:00 AM (9) to 11:59 PM (23)
+        // Parse the day and hour from the string
+        const [day, hourStr] = istString.split(', ');
+        const hour = parseInt(hourStr);
+
         const isWeekday = !['Saturday', 'Sunday'].includes(day);
+        // Logic: 09:00 (9) to 11:59 PM (23)
         const isWorkingHours = (hour >= 9 && hour <= 23); 
 
         if (isWeekday && isWorkingHours) {
             await axios.get(RENDER_EXTERNAL_URL);
-            console.log(`[${day} ${hour}:00 IST] Ping Successful: Server Kept Awake`);
+            console.log(`[Keep-Alive] ${day} ${hour}:00 IST - Ping successful.`);
         } else {
-            console.log(`[${day} ${hour}:00 IST] Outside window: Allowing server to sleep to save hours`);
+            console.log(`[Keep-Alive] ${day} ${hour}:00 IST - Outside window. Sleeping to save hours.`);
         }
     } catch (err) {
-        // Log error but don't crash the server
-        console.error('Keep-Alive Ping failed:', err.message);
+        console.error('[Keep-Alive] Error:', err.message);
     }
-}, 600000); // Check every 10 minutes (600,000ms)
+}, 300000); // Trigger every 5 minutes to ensure Render doesn't spin down
